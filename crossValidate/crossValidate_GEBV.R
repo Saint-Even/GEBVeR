@@ -15,21 +15,19 @@
 
 #### setup ####
 if (!require("pacman")) install.packages("pacman")
-# official version works on linux
-p_load_current_gh("eurominister/BWGS")
-#for vcf file manipulation
-p_load("vcfR")
-# for spreadsheet import
-p_load("openxlsx")
+p_load_current_gh("eurominister/BWGS") # official version works on linux
+p_load("vcfR") #vcf file manipulation
+p_load_current_gh("jeroen/sys") #system calls
 
-#Requires a input dir containing uncompressed .vcf files, as processed by mergeImpute
-# in dir have xlsx of BLUE/BLUP
+#Requires a input dir containing uncompressed .vcf files
+# in dir have csv of BLUE/BLUP
 #Requires an environment with up to date R version
 
 #### Clean up for new run ####
-
-setwd("/mnt/QNAP/holdens/PROC/GEBVeR/crossValidate/")
+getwd()
+setwd("")
 home <- getwd()
+
 dirs <- c("data", "output")
 for (d in dirs) {
   unlink(d, recursive = TRUE)
@@ -59,14 +57,18 @@ if (FALSE) {
 #FIXED: A matrix of fixed effect, to be used with some methods such as those included in BGLR, MUST have same rownames as geno and coded(-1 0 1)
 
 #interactive file selection
+setwd(home)
 setwd("input")
 # USER: select a .vcf genotype file
+dir()
 geno_cv_file <- file.choose(new = FALSE)
 # USER: select a .xlsx phenotype file
 pheno_cv_file <- file.choose(new = FALSE)
 
 FIXED_cv <- "NULL"
-pheno_cv <- read.xlsx(pheno_cv_file, colNames = TRUE, rowNames = FALSE)
+#pheno_cv <- read.xlsx(pheno_cv_file, colNames = TRUE, rowNames = FALSE)
+#pheno_cv <- read.table(pheno_cv_file, sep="\t", header=TRUE)
+pheno_cv <- read.csv(pheno_cv_file, header=TRUE)
 ALLcols <- colnames(pheno_cv)
 for (i in 1:length(ALLcols)) {
   print(paste(i, ":", ALLcols[i]))
@@ -76,7 +78,7 @@ for (i in 1:length(ALLcols)) {
 genoColumn <- 1
 # USER: enter a single number to indicate the column containing trait of interest
 # eg: genoColumn <- 1
-phenoColumn <- 8
+phenoColumn <- 9
 
 #### process data ####
 setwd(home)
@@ -106,32 +108,36 @@ sum(is.na(geno_cv))
 rm(ids, geno_cv_file, l, pheno_cv_file, genotype, trait, u, inter, listGENO, listPHENO)
 rm(ALLcols, genoColumn, phenoColumn, i)
 #### cross validate parameters ####
-pval <- 0.5 #strict example: 0.001
-nFolds <- 5
-nTimes <- 5
+pval <- 0.5 #strict: 0.001
+nFolds <- 10
+nTimes <- 10
 #                1        2         3     4        5     6      7
 ALLmethods <- c("GBLUP", "EGBLUP", "RR", "LASSO", "EN", "BRR", "BL",
                 "BA", "BB", "BC", "RKHS", "RF", "SVM", "BRNN")
 #                8     9     10    11      12    13     14
 # can accept NA in snp matrix: 1, 8, 11
 # can run with FIXED = NULL: 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14?
-
 # BRNN fails could be internally reparamterized
-#   expect long run times, good results to use the model free ML  method.
-# SVM LASSO EN perform poorly in publication and on our data.
+methods <- ALLmethods[c(1, 8, 11)] # unimputed data
+methods <- ALLmethods[c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)] # imputed data with no missing values
+#13:SVM is not good
 
-methods <- ALLmethods[c(1,2,3,4,5,6,7,8,9,10,11,12)]
-print(paste("Cross validation method:", methods))
+
+print("Cross validation methods:")
+print(paste(methods))
 
 #### calculate cross validation ####
+## jic any missing, imputing with endelman 2012, expectation maximization
+##pay attention to missingness test above
 
-for (method in methods){
+start_time <- Sys.time()
+for (method in methods) {
   print(paste("Validating:", method))
   result <- bwgs.cv(
     geno = geno_cv,
     pheno = pheno_cv,
     FIXED = FIXED_cv,
-    geno.impute.method = "NULL",
+    geno.impute.method = "EMI",
     geno.reduct.method = "ANO",
     pval = pval,
     predict.method = method,
@@ -143,8 +149,12 @@ for (method in methods){
   rm(method)
   rm(result)
   rm(name)
-
 }
+end_time <- Sys.time()
+end_time - start_time
+## impute EMI or NULL
+## reduct ANO or NULL
+
 
 # save workspace after run
 setwd(home)
@@ -188,20 +198,25 @@ for (result in results){
   rm(result)
 }
 
-pdf("comparison.pdf")
+pdf("CVcomparison.pdf")
 colnames(compare) <- names
 boxplot(compare,
-  xlab = "Prediction method",
-  ylab = "predictive ability",
-  main = "Predictive ability of methods"
-  )
+  xlab = "",
+  ylab = "Predictive strength",
+  main = "BWGS Cross Validate: Predictive ability of methods",
+  las = 2
+)
 dev.off()
 
+pdf("CVdeviation.pdf")
 barplot(deviations,
-        xlab = "Prediction method",
-        ylab = "Std Dev",
-        main = "Std Deviation of methods",
-        names.arg = names)
+  xlab = "",
+  ylab = "Std Dev",
+  main = "BWGS Cross Validate: Std. Deviation of methods",
+  las = 2,
+  names.arg = names
+)
+dev.off()
 
 print(names)
 
@@ -211,10 +226,7 @@ if (FALSE) {
   rm(result_LASSO)
   rm(result_EN)
   rm(result_RF)
-  rm(result_BL)
-  rm(result_RKHS)
-  rm(result_EGBLUP)
-  rm(result_)
+
 }
 
 #cleanup vis
@@ -223,10 +235,29 @@ rm(compare)
 rm(deviations)
 rm(names)
 
-#### report on best method ####
-
-                                        # result_<method> has summary, cv, sd, MSEP, SDMSEP, bv_table
+## report on all methods
 sink("Summary.txt")
+for (result in results) {
+  print(paste("Summary: ", result))
+  e <- eval(as.name(result))
+  print(e$summary)
+  print("===================")
+  print("")
+}
+sink()
+
+#### report on best method ####
+## result_<method> has summary, cv, sd, MSEP, SDMSEP, bv_table
+sink("SummaryGBLUP.txt")
 print("Summary")
 result_GBLUP
+sink()
+
+sink("Summary_BA_BC_BL.txt")
+print("Summary_BA")
+result_BA
+print("Summary_BC")
+result_BC
+print("Summary_BL")
+result_BL
 sink()

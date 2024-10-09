@@ -11,8 +11,9 @@
 ##            GEBVeR
  #### setup ####
 if (!require("pacman")) install.packages("pacman")
-# official version works on linux
-p_load_current_gh("eurominister/BWGS")
+                                        # official version works on linux
+#p_load_current_gh("eurominister/BWGS")
+p_load("BWGS")
 #for vcf file manipulation
 p_load("vcfR")
 # for spreadsheet import
@@ -33,8 +34,10 @@ p_load("plyr")
 # Requires an environment with up to date R version
 
 #### Clean up for new run ####
-setwd("/home/holdens/holdensQNAP/PROC/GEBVeR/predict/")
+getwd()
+setwd("")
 home <- getwd()
+
 dirs <- c("data", "output")
 for (d in dirs) {
   unlink(d, recursive = TRUE)
@@ -72,6 +75,7 @@ if (FALSE) {
 #USER: move through this section to interactively select training data
 setwd(home)
 setwd("input")
+dir()
 geno_train_file <- file.choose(new = FALSE)
 pheno_train_file <- file.choose(new = FALSE)
 FIXED_train <- "NULL"
@@ -99,7 +103,7 @@ ls()
 
 setwd(home)
 setwd("data")
-ids <- getID(geno_train)
+ids <- vcfR::getID(geno_train)
 u <- length(unique(ids))
 l <- length(ids)
 print(paste("The number of duplicated IDs:", l-u))
@@ -109,10 +113,13 @@ geno_train <- as.matrix(geno_train)
 geno_train <- t(geno_train)
 ls()
 
-# set pheno_train vector
+                                        # set pheno_train vector
 setwd(home)
 setwd("input")
-pheno_train <- read.xlsx(pheno_train_file)
+## pheno_train <- read.xlsx(pheno_train_file)
+&&& change to read csv
+pheno_train <- read.delim(pheno_train_file, sep =",")
+
 setwd(home)
 setwd("data")
 print("Use the column numbers to identify the columns you want to process.")
@@ -122,34 +129,37 @@ for (i in 1:length(ALLcols)){
   print(paste(i, ":", ALLcols[i]))
 }
 
-# USER: enter a single number to indicate the column containing genotype names
-# eg: genoColumn <- 1
+                                        # USER: enter a single number to indicate the column containing genotype names
+                                        # eg: genoColumn <- 1
 genoColumn <- 1
-# USER: enter comma separated column numbers to process for prediction
-# eg: traitColumns <- c(3,5,9)
-traitColumns <- c(8)
+                                        # USER: enter comma separated column numbers to process for prediction
+                                        # eg: traitColumns <- c(3,5,9)
+traitColumns <- c(2,3)
 
 #### prediction loop of traits and files ####
-#get user set of traits and loop on set
-genotype <- pheno_train[,genoColumn]
+                                        #get user set of traits and loop on set
 for (traitCol in traitColumns){
   traitName <- ALLcols[traitCol]
 
-  #reset pheno-train vector
+                                        #reset pheno-train vector
   setwd(home)
   setwd("input")
-  pheno_train <- read.xlsx(pheno_train_file)
+  #pheno_train <- read.xlsx(pheno_train_file)
+  pheno_train <- read.delim(pheno_train_file, sep =",")
+
   setwd(home)
   setwd("data")
+  ALLcols <- colnames(pheno_train)
+  genotype <- pheno_train[,genoColumn]
 
-  #extract one col
+                                        #extract one col
   trait <- pheno_train[,traitCol]
   names(trait) <- genotype
   pheno_train <- trait
 
   # optional name match testing, use fineNameMatches.R
-  test <- FALSE
-  stop <- TRUE
+  test <- TRUE
+  stop <- FALSE
 
   if (test) {
 
@@ -172,14 +182,13 @@ for (traitCol in traitColumns){
 
     if (stop) {
       print("Stopping early, set stop to false to continue.")
+      exit(0)
     }
   }
 
-
-
   #### predict parameters ####
   # pval should be set to same as in cross validation runs!
-  pval <- 0.5 #strict example: 0.001
+  pval <- 0.45 #strict example: 0.001
   #                1        2         3     4        5     6      7
   ALLmethods <- c("GBLUP", "EGBLUP", "RR", "LASSO", "EN", "BRR", "BL",
                   "BA", "BB", "BC", "RKHS", "RF", "SVM", "BRNN")
@@ -201,7 +210,7 @@ for (traitCol in traitColumns){
     setwd(home) # because file path starts at home
     geno_target <- vcfR::read.vcfR(geno_target_file, verbose = FALSE)
     setwd("data") # now drop down
-    ids <- getID(geno_target)
+    ids <- vcfR::getID(geno_target)
     u <- length(unique(ids))
     l <- length(ids)
     print(paste("The number of duplicated target IDs:", l-u))
@@ -317,6 +326,7 @@ for (traitCol in traitColumns){
 } # end for each trait in traits
 #### END prediction loop of traits and files ####
 
+
 #### cleanup auto ####
 mem <- ls()
 for (i in 1:length(mem)){
@@ -340,9 +350,5 @@ print(paste("Deleting:", del))
 rm(list=del)
 rm(mem, keep, del, nomatch)
 gc() #garbage collect to immediately free RAM
-
-
-
-
 
 exit(0)

@@ -9,28 +9,33 @@
 ##
 ##    -----~--~---~~~----~-`.-;~
 ##            GEBVeR
+
 #### setup ####
 if (!require("pacman")) install.packages("pacman")
-#for vcf file manipulation
-p_load("vcfR")
-# for spreadsheet import
-p_load("openxlsx")
+p_load("languageserver") # emacs repl etc
+p_load("vcfR") # vcf file manipulation
 
-#Requires a input dir containing uncompressed .vcf files, as processed by ...commonMarker or intersectMarker
-# in dir have xlsx of BLUE/BLUP trait scores
-#Rquires an environment with up to date R version
+## Requires an environment with up to date R version
+## Requires a input dir, data dir, output dir
+## input dir containing uncompressed .vcf files
+## in dir have csv of BLUE/BLUP trait scores
+
 #### Clean up for new run ####
-setwd("/mnt/QNAP/holdens/PROC/GEBVeR/crossValidate/")
+#USER: ensure working directory is correct for this project
+getwd()
+setwd("")
 home <- getwd()
 
 # interactive file selection
 setwd(home)
 setwd("input")
 #USER: select a .vcf genotype file
+dir()
 geno_file <- file.choose(new = FALSE)
-#USER: select a .xlsx phenotype file
+#USER: select a .csv phenotype file
 pheno_file <- file.choose(new = FALSE)
-pheno <- read.xlsx(pheno_file, colNames = TRUE, rowNames = FALSE)
+pheno <- read.csv(pheno_file, header=TRUE)
+#pheno <- read.table(pheno_file, sep = "\t", header = TRUE)
 ALLcols <- colnames(pheno)
 for (i in 1:length(ALLcols)){
   print(paste(i, ":", ALLcols[i]))
@@ -70,15 +75,15 @@ print(paste("Total NA in geno:", sum(is.na(geno))))
 
 #mimic internal BWGS tests
 print("")
-print(paste("Lines shared in pheno and geno:", length(shared_genotypes)))
+print("Shared Genotypes:")
 print(shared_genotypes)
+print(paste("Lines shared in pheno and geno:", length(shared_genotypes)))
 
 # print unique in each as a name check for any lines which should match but are misnamed
 print("")
 print(paste("Unmatched lines in Pheno:", length(p_unique_genotypes),"(consider editing where appropriate)"))
 print(p_unique_genotypes)
 print("")
-print("Unmatched lines in Geno, .")
 print(paste("Unmatched lines in Geno:", length(g_unique_genotypes),"(compare to pheno above)"))
 print(g_unique_genotypes)
 print("++++++++++++++++++")
