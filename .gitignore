@@ -1,1 +1,15 @@
+/gtMetric/input/*
 /gtMetric/output/*
+/gtMetric/data/*
+
+/crossValidate/input/*
+/crossValidate/output/*
+/crossValidate/data/*
+
+/phenoCorrelation/input/*
+/phenoCorrelation/output/*
+/phenoCorrelation/data/*
+
+/predict/input/*
+/predict/output/*
+/predict/data/*
