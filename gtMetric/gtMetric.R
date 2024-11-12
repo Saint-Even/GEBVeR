@@ -1,24 +1,40 @@
-#### requirements inputs and asumptions
+#### requirements inputs and assumptions
 
 ## requires an env with current version of R
 
-## Input File Specification
+## Expected Directory Structure
 
-## Phenotype file (.csv):
-##    - Contains observed trait data for genotypes for the BWGS training, determines its output
-##    - its trait cols are used to indentify prediction files
+## - input
+##   - ground-truth
+##     - 1x .csv
+##   - phenotype
+##     - 1x .csv
+##   - predictions
+##     - nx .csv
+## - data
+## - output
 
+## Input File Specifications
 
-## Prediction files (.csv in input/predict/):
-##    - the file names must be formated like 'fileName_yield_theRest_ofTheFileName.csv'
-##    - From the BWGS process, it is assumed that a col named 'gpred' contains the predicted trait value
-##    - Contains predicted trait values (GEBVs) for genotypes
-##    - Prediction files must correspond to specific traits in phenotype columns
-##    - the  line names in the genotype col must match some of the ground truth line names
-
-## Ground Truth file (.xlsx or preferably .csv):
+## Ground Truth file (.csv):
 ##    - Contains validated trait values for genotypes
 ##    - Used as the baseline for comparison with predictions
+## &&& format cols and rows
+
+## Phenotype file (.csv):
+##    - same as used for BWGS training, determining the set of output predictions
+##    - Contains observed trait data for genotypes
+##    - rows genotypes
+##    - col 1 Genotype
+##    - n cols traits
+##    - trait col names are here used to identify prediction files
+
+## Prediction files (.csv in input/predictions/):
+##    - Prediction files must correspond to specific traits in phenotype columns
+##    - the file names must be formated like 'fileName_<trait>_theRest_ofTheFileName.csv'
+##    - From the BWGS process, it is assumed that a col named 'gpred' contains the predicted trait value
+##    - Contains predicted trait values (GEBVs) for genotypes
+##    - the  line names in the genotype col must match some of the ground truth line names
 
 ## Key relationships:
 ## - Genotype col names should be consistent across Phenotype and Ground Truth files, but may be checked and corrected
@@ -42,7 +58,7 @@ p_load("gridExtra") #grid print multiple plots
 
                                         # set home
 getwd()
-setwd("")
+# setwd("")
 home <- getwd()
 
                                         # clean up
@@ -56,102 +72,122 @@ for (d in dirs) {
 }
 rm(d, dirs)
 
-                                        # interactive file selection
+                                        # file selection
 setwd(home)
-setwd("input")
-dir()
-##USER: select a .csv phenotype file, this should be the same as used for predictions in BWGS
-phen_file <- file.choose(new = FALSE)
-##USER: select a .csv groundTruth file, this may also be a multi sheet xlsx if necessary
-grtr_file <- file.choose(new = FALSE)
+setwd("input/phenotype")
+flist <- list.files(pattern = "*.csv", full.names = TRUE)
+if (length(flist) != 1 ){
+  stop("input/phenotype must contain 1 .csv file")
+}
+phen_file <- flist[1]
+phen <- read.csv(phen_file, header = TRUE, row.names = NULL)
 
-phen <- read.csv(phen_file, header=TRUE, row.names = NULL)
+setwd(home)
+setwd("input/ground-truth")
+flist <- list.files(pattern = "*.csv", full.names = TRUE)
+if (length(flist) != 1) {
+  stop("input/ground-truth must contain 1 .csv file")
+}
+grtr_file <- flist[1]
 grtr <- read.csv(grtr_file, header=TRUE, row.names=NULL)
 
-## sheetNames <- getSheetNames(grtr_file)
-## dataFrames <- list()
-## for( sheet in sheetNames){
-##   df <- read.xlsx(grtr_file, sheet = sheet )
-##   dataFrames[[sheet]] <- df
-## }
-## # USER:Pick one sheet!
-## grtr <- dataFrames$GSV_0123
-
-#### get all *.csv prediction files from input/predict ####
 setwd(home)
-setwd("input/predict")
+setwd("input/predictions")
 flist <- list.files(pattern = "*.csv", full.names = TRUE)
-
+if (length(flist) <= 0) {
+  stop("input/predictions must contain 1 or more .csv files")
+}
 ## USER: optional select a single .csv gebv predictions file, override flist
 if (FALSE) {
   setwd(home)
-  setwd("input/predict")
+  setwd("input/predictions")
   dir()
   flist <- file.choose(new = FALSE)
 }
 
                                         # rename grtr cols
-
-if(FALSE){
-  names(grtr)[names(grtr) == "name"] <- "Genotype"
-}
+## names(grtr)[names(grtr) == "<change-me>"] <- "<to-this>"
+names(grtr)[names(grtr) == "name"] <- "Genotype"
 
                                         # get cols
 phen_cols <- colnames(phen)
 grtr_cols <- colnames(grtr)
-
                                         #intersect cols for expected matches
 phen_only <- setdiff(phen_cols, grtr_cols)
 grtr_only <- setdiff(grtr_cols, phen_cols)
 shared <- intersect(grtr_cols, phen_cols)
 
                                         # report for confirm
-print("We expect the prediction files in input/predict to match some of the phenotype columns.")
+print("We expect the prediction files in input/predictions to match some of the phenotype columns.")
 print("Here the unmatched columns are presented to check if expected matches are being missed due to mispelling. If that is the case, rename the columns in the ground truth file, then reload the file.")
 print("NOTE: the name of the column for genotypes must match!")
-
 print("")
 print("Unmatched cols in groundtruth file (rename these):")
 print(grtr_only) # ground truth cols should be edited if a match is expected
-
 print("")
 print("Unmatched cols in phenotype file (to match these):")
 print(phen_only) # because we know that prediction file names will match some of these
-
 print("")
 print("Matched columns:")
 print(shared)
-                                        #present matches
 
-for (i in 1:length(shared)){
+                                        #present matches
+for (i in 1:length(shared)) {
   print(paste(i, ":", shared[i]))
 }
 
-
 ## selection for validation
-## [1] "2 : head"
-## [1] "3 : ht"
-## [1] "4 : mat"
-## [1] "6 : yield"
-## [1] "7 : agr"
-## [1] "8 : plump"
-## [1] "9 : thin"
-## [1] "10 : twt"
-## [1] "11 : kwt"
-## [1] "12 : gpro"
-## [1] "13 : aa"
-## [1] "14 : dp"
-## [1] "15 : xf"
-## [1] "16 : spro"
-## [1] "17 : s_t"
-## [1] "18 : bglu3"
-
+## head"
+## ht"
+## mat"
+## yield"
+## agr"
+## twt"
+## kwt"
+## plump"
+## thin"
+## gpro"
+## aa"
+## dp"
+## xf"
+## spro"
+## s_t"
+## bglu3"
 
 ## USER: enter the numbers to indicate the columns containing traits. eg: traits <- c(2,3,4)
 traitCols <- c(2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18)
 ## USER: enter the number of the column with genotype names eg: gtypeCol <- 1
 genoCol <- 1
 genoColStr <- shared[genoCol]
+
+intersect_selectedTraits_predFiles <- function(traitCols, shared, flist) {
+  matched_files <- character()
+  matched <- character()
+  non_matched <- character()
+# find
+  for (i in traitCols) {
+    trait <- shared[i]
+    matching_files <- flist[grepl(trait, flist, fixed = TRUE)]
+    if (length(matching_files) > 0) {
+      matched_files <- c(matched_files, matching_files)
+      matched <- c(matched, trait)
+    } else {
+      non_matched <- c(non_matched, trait)
+    }
+  }
+# report
+  print("Traits with matching prediction file")
+  print(matched)
+  print("Traits with no matching prediction file")
+  print(non_matched)
+# test
+  if (length(matched) == 0) {
+    stop("No prediction files were found to match selected traits")
+  }
+  return(matched_files)
+}
+
+matchedPredictions <- intersect_selectedTraits_predFiles(traitCols, shared, flist)
 
 ##########################
 #### metric functions ####
@@ -268,7 +304,6 @@ plot_agreeMatrix <- function(vec1, vec2, trait) {
 printer <- function(data){
   sprintf("%s: %s", names(data), data)
 }
-
 calculate_metrics <- function(vec1, vec2, trait) {
   ## vec1 is True values
   ## vec2 is Predicted values
@@ -320,74 +355,72 @@ calculate_metrics <- function(vec1, vec2, trait) {
 #### utility functions ####
 ##########################
 
+for (f in matchedPredictions) {
 
-#### loop on traits
-for ( i in traitCols){
-                                        #get trait from shared traits
-  trait <- shared[i]
-  for (f in flist){
-                                        # filter flist by match to trait
-    exists <- grepl(trait, f, fixed = TRUE)
-    if(exists) {
-                                        # get predicton file
-      setwd(home)
-      setwd("input/predict")
-      pred <- read.csv(f, header=TRUE)
+  # get predicton file
+  setwd(home)
+  setwd("input/predictions")
+  pred <- read.csv(f, header = TRUE)
+  # get trait from filename
+  splits <- strsplit(f, "_")[[1]]
+  trait <- splits[2]
 
-      setwd(home)
-      setwd("data")
-      ## extract named vector from grtr and pred
-      namedPredictions <- setNames(pred$gpred, pred$lines)
-      namedGrtr <- setNames(grtr[[trait]], grtr[[genoColStr]])
-      ## drop  any nans, report count of remaining lines
-      nansPred <- sum(is.na(namedPredictions))
-      nansGrtr <- sum(is.na(namedGrtr))
-      anyNans <- nansPred+nansGrtr
-      if(anyNans > 0) {
-        print("Dropping NaN from data.")
-        print(glue("count of NAN in Predictions: {nansPred}"))
-        print(glue("count of NAN in GroundTruth: {nansGrtr}"))
-        namedPredictions <- na.omit(namedPredictions)
-        namedGrtr <- na.omit(namedGrtr)
-      }
+  setwd(home)
+  setwd("data")
+  ## extract named vector from grtr and pred
+  namedPredictions <- setNames(pred$gpred, pred$lines)
+  namedGrtr <- setNames(grtr[[trait]], grtr[[genoColStr]])
+  ## drop  any nans, report count of remaining lines
+  nansPred <- sum(is.na(namedPredictions))
+  nansGrtr <- sum(is.na(namedGrtr))
+  anyNans <- nansPred + nansGrtr
+  if (anyNans > 0) {
+    print("Dropping NaN from data.")
+    print(glue("count of NAN in Predictions: {nansPred}"))
+    print(glue("count of NAN in GroundTruth: {nansGrtr}"))
+    namedPredictions <- na.omit(namedPredictions)
+    namedGrtr <- na.omit(namedGrtr)
+  }
 
-      ## intersect by names
-      namedMatches <- intersect(names(namedPredictions), names(namedGrtr))
-      ## report count of matching lines
-      print("Count of lines in data set. Matching lines are final data set.")
-      print(glue("Ground Truth Lines: {length(namedGrtr)}"))
-      print(glue("Predictions Lines: {length(namedPredictions)}"))
-      print(glue("Matching Lines: {length(namedMatches)}"))
-      print(namedMatches)
-      ## drop non match lines
-      namedPredictions <- namedPredictions[namedMatches]
-      namedGrtr <- namedGrtr[namedMatches]
-      ## run comparison metrics args, two named vectors, trait string
-      setwd(home)
-      setwd ("data")
-      results <- calculate_metrics(namedGrtr, namedPredictions, trait)
-      # move files to output
-      setwd(home)
-      setwd ("data")
-      pattern <- paste0(".*_", trait, "\\.[^.]+$")
-      matching_files <- list.files(path=".", pattern=pattern, full.names=TRUE)
-      target_dir <- file.path("..", "output", trait)
-      if(!dir.exists(target_dir)) {
-        dir.create(target_dir, recursive=TRUE)
-      }
-      for(file in matching_files){
-        path <- file.path(target_dir, basename(file))
-        file.copy(file, path)
-        file.remove(file)
-      }
-      ## cleanup anything left in data
-      setwd(home)
-      setwd ("data")
-      pattern <- paste0(".*")
-      matching_files <- list.files(path=".", pattern=pattern, full.names=TRUE)
-      for(file in matching_files){
-        file.remove(file)
-      }
-    }
-  } #end prediction file
-}#end trait
+  ## intersect by names
+  namedMatches <- intersect(names(namedPredictions), names(namedGrtr))
+  ## report count of matching lines
+  print("Count of lines in data set. Matching lines are final data set.")
+  print(glue("Ground Truth Lines: {length(namedGrtr)}"))
+  print(glue("Predictions Lines: {length(namedPredictions)}"))
+  print(glue("Matching Lines: {length(namedMatches)}"))
+  print(namedMatches)
+  ## drop non match lines
+  namedPredictions <- namedPredictions[namedMatches]
+  namedGrtr <- namedGrtr[namedMatches]
+  ## run comparison metrics args, two named vectors, trait string
+  setwd(home)
+  setwd("data")
+  results <- calculate_metrics(namedGrtr, namedPredictions, trait)
+  # move files to output
+  setwd(home)
+  setwd("data")
+  pattern <- paste0(".*_", trait, "\\.[^.]+$")
+  matching_files <- list.files(path = ".", pattern = pattern, full.names = TRUE)
+  target_dir <- file.path("..", "output", trait)
+  if (!dir.exists(target_dir)) {
+    dir.create(target_dir, recursive = TRUE)
+  }
+  for (file in matching_files) {
+    path <- file.path(target_dir, basename(file))
+    file.copy(file, path)
+    file.remove(file)
+  }
+  ## cleanup anything left in data
+  setwd(home)
+  setwd("data")
+  pattern <- paste0(".*")
+  matching_files <- list.files(path = ".", pattern = pattern, full.names = TRUE)
+  for (file in matching_files) {
+    file.remove(file)
+  }
+setwd(home)
+}
+
+exit()
+#########################################
